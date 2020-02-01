@@ -60,6 +60,8 @@ balloc(uint dev)
   int b, bi, m;
   struct buf *bp;
 
+  // bitmap的第i位刚好对应block i
+  // 一个bitmap block有BPB位
   bp = 0;
   // 从0开始遍历block
   for(b = 0; b < sb.size; b += BPB){
@@ -67,7 +69,7 @@ balloc(uint dev)
     bp = bread(dev, BBLOCK(b, sb));
     // 遍历从b到b+BPB的bitmap，看是否有空余的
     for(bi = 0; bi < BPB && b + bi < sb.size; bi++){
-      // buffer的data是按uchar读取的，所以这里按8读取和处理
+      // buffer的data是按uchar读取的，所以这里按8 bit读取和处理
       m = 1 << (bi % 8);  // 获取对应位的mask
       // 获取对应位的8个bit，与上mask，得到是否被使用的标记
       if((bp->data[bi/8] & m) == 0){  // Is block free?
