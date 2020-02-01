@@ -33,7 +33,7 @@ readsb(int dev, struct superblock *sb)
 {
   struct buf *bp;
 
-  bp = bread(dev, 1);
+  bp = bread(dev, 1);  // super block num is 1
   memmove(sb, bp->data, sizeof(*sb));
   brelse(bp);
 }
@@ -52,6 +52,7 @@ bzero(int dev, int bno)
 
 // Blocks.
 
+// 获取一个空block
 // Allocate a zeroed disk block.
 static uint
 balloc(uint dev)
@@ -60,16 +61,21 @@ balloc(uint dev)
   struct buf *bp;
 
   bp = 0;
+  // 从0开始遍历block
   for(b = 0; b < sb.size; b += BPB){
+    // Get bitmap block of block b from device dev
     bp = bread(dev, BBLOCK(b, sb));
+    // 遍历从b到b+BPB的bitmap，看是否有空余的
     for(bi = 0; bi < BPB && b + bi < sb.size; bi++){
-      m = 1 << (bi % 8);
+      // buffer的data是按uchar读取的，所以这里按8读取和处理
+      m = 1 << (bi % 8);  // 获取对应位的mask
+      // 获取对应位的8个bit，与上mask，得到是否被使用的标记
       if((bp->data[bi/8] & m) == 0){  // Is block free?
         bp->data[bi/8] |= m;  // Mark block in use.
-        log_write(bp);
+        log_write(bp);  // 把bitmap的修改写回Disk
         brelse(bp);
-        bzero(dev, b + bi);
-        return b + bi;
+        bzero(dev, b + bi);  //清空对应的 b+bi block
+        return b + bi;  // 返回block num
       }
     }
     brelse(bp);
@@ -90,8 +96,8 @@ bfree(int dev, uint b)
   m = 1 << (bi % 8);
   if((bp->data[bi/8] & m) == 0)
     panic("freeing free block");
-  bp->data[bi/8] &= ~m;
-  log_write(bp);
+  bp->data[bi/8] &= ~m;  // 对应位标记为0
+  log_write(bp);  // 把bitmap block写回Disk
   brelse(bp);
 }
 
