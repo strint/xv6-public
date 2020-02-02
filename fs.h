@@ -32,11 +32,11 @@ struct dinode {
   short minor;          // Minor device number (T_DEV only)
   short nlink;          // Number of links to inode in file system
   uint size;            // Size of file (bytes)
-  uint addrs[NDIRECT+1];   // Data block addresses
-};
+  uint addrs[NDIRECT+1];   // Data block addresses(block num)
+};  // 2*4 + 4 + 4*13 = 64
 
 // Inodes per block.
-#define IPB           (BSIZE / sizeof(struct dinode))
+#define IPB           (BSIZE / sizeof(struct dinode))  // 512 / 64 = 8
 
 // Block containing inode i
 #define IBLOCK(i, sb)     ((i) / IPB + sb.inodestart)
@@ -53,5 +53,5 @@ struct dinode {
 struct dirent {
   ushort inum;
   char name[DIRSIZ];
-};
+};  // 2 + 14 = 16
 

@@ -21,8 +21,8 @@ struct inode {
   short major;
   short minor;
   short nlink;
-  uint size;
-  uint addrs[NDIRECT+1];
+  uint size;          // 关联的block的byte数
+  uint addrs[NDIRECT+1];  // 关联的block num
 };
 
 // table mapping major device number to
