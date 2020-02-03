@@ -9,6 +9,68 @@
 // routines.  The (higher-level) system call implementations
 // are in sysfile.c.
 
+// block
+// block结构
+//   在磁盘上
+//     512bytes
+//   在内存中
+//     对应一个buffer
+// block方法
+//   readsb()从磁盘中读取superblock信息
+//   bzero()把一个磁盘block都写成0
+//   balloc()获取一个空的block
+//     读取bitmap区，找到一个bitmap标记为空的block
+//   bfree()释放一个block
+//     把对应的bitmap bit置为1
+
+// inode
+// inode结构
+//   在磁盘上
+//     磁盘的inode区存储了dinode，是inode的元数据，每个dinode有64bytes
+//     一个block可以存储8个dinode
+//     磁盘的data区存储了与inode相关的data block，存储inode的内容；
+//     dinode中addrs记录了dinode到data block映射的block num
+//     dinode中addrs中前面每个对应一个直接映射的data block num
+//     dinode中最后一个addrs里面的block num对应的block存储的是间接映射的block num(128个)
+//   在内存中
+//     inode和dinode一一对应，ilock把dinode转成inode，iupdate把inode转成dinode
+//     icache存储了在用的50个inode
+// inode方法
+//   锁
+//     spinlock自旋锁，不断循环尝试获得锁，适合锁短时间占用的区域；
+//     sleeplock睡眠锁，没得到锁会sleep等待别人释放，适合锁长时间占用的区域；
+//   inode
+//     iinit()初始化icache的锁和里面每个inode的锁
+//     ialloc()找到磁盘上的一个空inode，标记为占用
+//     iupdate()更新inode的元信息到磁盘
+//     iget()从icache中获取或者分配一个inode位置，增加其引用计数
+//     idup()增加inode的ref_count
+//     ilock()尝试sleeplock住inode，如果inode没被加载到内存就加载下
+//     iunlock()释放inode的sleeplock
+//     iput()减少inode的引用计数（inode无引用时清理inode的meta data和关联data block）
+//       iput()调用了itrunc()释放inode关联的data block
+//     iunlockput()是iunlock() + iput
+//     bmap()返回inode的第i个数据block对应的block num(没有时做block的分配)
+//     itrunc()释放inode关联的data block
+//     stati()返回inode的meta data
+//     readi()从inode的数据off位置开始读n个byte，放到dst中，磁盘到内存
+//     writei()从inode的数据off位置开始写n个byte，数据源在src，内存到磁盘
+
+// dir
+// dir结构
+//   dir是一种特殊的inode，其类型是dir，data部分存储的是dir entry
+//   dir entry对应一个子的dir
+// dir方法
+//   namecmp()比较路径名是否相同
+//   dirlookup()从父目录的inode的子目录中找到对应dir name的dir的inode
+//     从inode的data部分去读子目录的dir entry，使用了readi和iget
+//   dirlink()在父目录的inode中新增子dir entry
+//     从inode的data部分找空的dir entry，占用，使用了readi和writei
+//   skipelem()查获取子目录路径
+//   namex()获取path对应dir的inode或者上一级inode
+//   namei()获取path对应dir的inode，调用了namex
+//   nameiparent()获取path对应dir的上一级inode，调用了namex
+
 #include "types.h"
 #include "defs.h"
 #include "param.h"
@@ -441,11 +503,11 @@ itrunc(struct inode *ip)
   }
 
   // 释放间接关联的block
-  // 关联的第NDIRECT块block里面存放着16块间接关联的block的num
+  // 关联的第NDIRECT块block里面存放着128块间接关联的block的num
   if(ip->addrs[NDIRECT]){
     bp = bread(ip->dev, ip->addrs[NDIRECT]);
     a = (uint*)bp->data;
-    // 16个间接关联的block
+    // 128个间接关联的block
     for(j = 0; j < NINDIRECT; j++){
       if(a[j])
         bfree(ip->dev, a[j]);
@@ -551,7 +613,7 @@ namecmp(const char *s, const char *t)
   return strncmp(s, t, DIRSIZ);
 }
 
-// 找对应dir name的dir的inode
+// 从父目录的inode的子目录中找到对应dir name的dir的inode
 // Look for a directory entry in a directory.
 // If found, set *poff to byte offset of entry.
 struct inode*
@@ -605,6 +667,7 @@ dirlink(struct inode *dp, char *name, uint inum)
       break;
   }
 
+  // 把新的dir entry写到data区
   strncpy(de.name, name, DIRSIZ);
   de.inum = inum;
   if(writei(dp, (char*)&de, off, sizeof(de)) != sizeof(de))
