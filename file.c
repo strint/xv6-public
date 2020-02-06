@@ -2,6 +2,14 @@
 // File descriptors
 //
 
+// file
+// file结构
+//   ftable记录全局file，带有有个spinlock，里面有file组成的数组
+//   file 中包含了一个inode或者pipe的指针
+
+// file方法
+//   fileinit()初始化ftable的spinlock
+
 #include "types.h"
 #include "defs.h"
 #include "param.h"
