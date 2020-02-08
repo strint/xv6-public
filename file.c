@@ -9,6 +9,12 @@
 
 // file方法
 //   fileinit()初始化ftable的spinlock
+//   filealloc()从ftable中找到一个空file，增加其ref_count
+//   filedup()增加file的ref_count
+//   fileclose()减少ref_count，ref_count为0时，释放inode引用或者关闭pipe
+//   filestat()打印inode的元数据
+//   fileread()读取inode[使用readi]或者pipe[使用piperead]
+//   filewrite()写inode[使用writei]或者pipe[使用pipewrite]
 
 #include "types.h"
 #include "defs.h"
