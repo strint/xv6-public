@@ -148,6 +148,7 @@ filewrite(struct file *f, char *addr, int n)
     int max = ((MAXOPBLOCKS-1-1-2) / 2) * 512;
     int i = 0;
     while(i < n){
+      // 分片写，受最大大小限制
       int n1 = n - i;
       if(n1 > max)
         n1 = max;

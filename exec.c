@@ -21,6 +21,7 @@ exec(char *path, char **argv)
 
   begin_op();
 
+  // 找到path对应的inode
   if((ip = namei(path)) == 0){
     end_op();
     cprintf("exec: fail\n");
@@ -29,6 +30,7 @@ exec(char *path, char **argv)
   ilock(ip);
   pgdir = 0;
 
+  // 读取file
   // Check ELF header
   if(readi(ip, (char*)&elf, 0, sizeof(elf)) != sizeof(elf))
     goto bad;

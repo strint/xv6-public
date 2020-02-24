@@ -49,6 +49,7 @@ fetchstr(uint addr, char **pp)
 int
 argint(int n, int *ip)
 {
+  // esp是栈的基址
   return fetchint((myproc()->tf->esp) + 4 + 4*n, ip);
 }
 
